@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../services/api";
 
 export default function QuestionBank() {
-  const [questions, setQuestions] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [userId, setUserId] = useState(null);
+  const [items, setItems] = useState([]);
   const [form, setForm] = useState({
     text: "",
     option_a: "",
@@ -16,6 +12,10 @@ export default function QuestionBank() {
     correct_answer: "A",
     category: "",
   });
+  const [categories, setCategories] = useState([]);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [userId, setUserId] = useState(null);
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -24,17 +24,15 @@ export default function QuestionBank() {
     loadCurrentUser();
   }, []);
 
-  // Load questions
   async function loadQuestions() {
     try {
       const res = await api.get("/questions/");
-      setQuestions(res.data);
+      setItems(res.data);
     } catch (err) {
       console.error("Error loading questions", err);
     }
   }
 
-  // Load categories
   async function loadCategories() {
     try {
       const res = await api.get("/categories/");
@@ -44,32 +42,28 @@ export default function QuestionBank() {
     }
   }
 
-  // Load current user
   async function loadCurrentUser() {
     try {
-      const res = await api.get("/auth/me/"); // adjust to your actual endpoint
+      const res = await api.get("/users/me/");
       setUserId(res.data.id);
     } catch (err) {
-      console.error("Error loading user", err);
+      console.error("Error loading current user", err);
     }
   }
 
-  function setField(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  function set(k, v) {
+    setForm((p) => ({ ...p, [k]: v }));
   }
 
   async function saveQuestion(e) {
     e.preventDefault();
     try {
-      const payload = { ...form, category_id: form.category || null };
-
       if (editingId) {
-        await api.put(`/questions/${editingId}/`, payload);
+        await api.put(`/questions/${editingId}/`, form);
         setEditingId(null);
       } else {
-        await api.post("/questions/", payload);
+        await api.post("/questions/", form);
       }
-
       setForm({
         text: "",
         option_a: "",
@@ -79,14 +73,13 @@ export default function QuestionBank() {
         correct_answer: "A",
         category: "",
       });
-
       await loadQuestions();
     } catch (err) {
       console.error("Error saving question", err);
     }
   }
 
-  async function deleteQuestion(id) {
+  async function del(id) {
     if (!window.confirm("Are you sure you want to delete this question?")) return;
     try {
       await api.delete(`/questions/${id}/`);
@@ -109,10 +102,11 @@ export default function QuestionBank() {
     });
   }
 
-  // Filtered questions
-  const filteredQuestions = questions.filter((q) => {
+  const filteredItems = items.filter((q) => {
     const matchesSearch = q.text.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = categoryFilter ? String(q.category?.id) === String(categoryFilter) : true;
+    const matchesCategory = categoryFilter
+      ? String(q.category?.id) === String(categoryFilter)
+      : true;
     return matchesSearch && matchesCategory;
   });
 
@@ -120,7 +114,7 @@ export default function QuestionBank() {
     <div style={{ padding: 16 }}>
       <h2>Question Bank (Examiner)</h2>
 
-      {/* Search & Filter */}
+      {/* Search & Category Filter */}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <input
           placeholder="Search questions..."
@@ -135,24 +129,20 @@ export default function QuestionBank() {
         </select>
       </div>
 
-      {/* Add/Edit Question Form */}
+      {/* Add/Edit Form */}
       <form onSubmit={saveQuestion} style={{ display: "grid", gap: 8, maxWidth: 650, marginBottom: 16 }}>
-        <textarea
-          placeholder="Question text"
-          value={form.text}
-          onChange={(e) => setField("text", e.target.value)}
-        />
-        <input placeholder="Option A" value={form.option_a} onChange={(e) => setField("option_a", e.target.value)} />
-        <input placeholder="Option B" value={form.option_b} onChange={(e) => setField("option_b", e.target.value)} />
-        <input placeholder="Option C" value={form.option_c} onChange={(e) => setField("option_c", e.target.value)} />
-        <input placeholder="Option D" value={form.option_d} onChange={(e) => setField("option_d", e.target.value)} />
-        <select value={form.correct_answer} onChange={(e) => setField("correct_answer", e.target.value)}>
+        <textarea placeholder="Question text" value={form.text} onChange={(e)=>set("text", e.target.value)} />
+        <input placeholder="Option A" value={form.option_a} onChange={(e)=>set("option_a", e.target.value)} />
+        <input placeholder="Option B" value={form.option_b} onChange={(e)=>set("option_b", e.target.value)} />
+        <input placeholder="Option C" value={form.option_c} onChange={(e)=>set("option_c", e.target.value)} />
+        <input placeholder="Option D" value={form.option_d} onChange={(e)=>set("option_d", e.target.value)} />
+        <select value={form.correct_answer} onChange={(e)=>set("correct_answer", e.target.value)}>
           <option value="A">Correct: A</option>
           <option value="B">Correct: B</option>
           <option value="C">Correct: C</option>
           <option value="D">Correct: D</option>
         </select>
-        <select value={form.category} onChange={(e) => setField("category", e.target.value)}>
+        <select value={form.category} onChange={(e) => set("category", e.target.value)}>
           <option value="">Select Category</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -163,21 +153,21 @@ export default function QuestionBank() {
           <button type="button" onClick={() => {
             setEditingId(null);
             setForm({
-              text: "",
-              option_a: "",
-              option_b: "",
-              option_c: "",
-              option_d: "",
-              correct_answer: "A",
-              category: "",
-            });
+              text:"",
+              option_a:"",
+              option_b:"",
+              option_c:"",
+              option_d:"",
+              correct_answer:"A",
+              category:""
+            })
           }}>Cancel</button>
         )}
       </form>
 
-      {/* Questions List */}
+      {/* Questions */}
       <div style={{ display: "grid", gap: 12 }}>
-        {filteredQuestions.map((q) => (
+        {filteredItems.map((q) => (
           <div key={q.id} style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <div>
@@ -185,10 +175,11 @@ export default function QuestionBank() {
                 <small>Examiner: {q.examiner_name}</small>
                 {q.category && <div>Category: {q.category.name}</div>}
               </div>
-              {q.examiner_id === userId && (
+              {/* Fix: use q.examiner.id */}
+              {q.examiner?.id === userId && (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => startEdit(q)}>Edit</button>
-                  <button onClick={() => deleteQuestion(q.id)}>Delete</button>
+                  <button onClick={() => del(q.id)}>Delete</button>
                 </div>
               )}
             </div>
