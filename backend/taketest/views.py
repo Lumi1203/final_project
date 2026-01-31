@@ -3,6 +3,8 @@ from django.conf import settings
 from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+from rest_framework.permissions import IsAuthenticated
 
 
 from openai import OpenAI
@@ -15,8 +17,11 @@ from .serializers import (
     SubmitQuizSerializer,
     ExplainIncorrectSerializer,
     CategorySerializer,
+     
 )
 from .permissions import IsExaminer, IsTestTaker, IsCreatorOrReadOnly
+
+User = get_user_model()
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -168,3 +173,18 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     queryset = Category.objects.all()
     permission_classes = [IsExaminer]
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    """
+    Return info about the currently logged-in user
+    """
+    return Response({
+        "id": request.user.id,
+        "first_name": request.user.first_name,
+        "last_name": request.user.last_name,
+        "username": request.user.username,
+        "role": getattr(request.user, "role", None),
+    })

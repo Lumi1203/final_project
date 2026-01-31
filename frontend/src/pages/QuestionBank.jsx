@@ -12,13 +12,18 @@ export default function QuestionBank() {
     correct_answer: "A",
     category: "",
   });
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [categories, setCategories] = useState([]);
-  const [userId, setUserId] = useState(null); // current examiner ID
-  const [editingId, setEditingId] = useState(null); // id of question being edited
+  const [userId, setUserId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
-  // Load all questions
+  useEffect(() => {
+    loadQuestions();
+    loadCategories();
+    loadCurrentUser();
+  }, []);
+
   async function loadQuestions() {
     try {
       const res = await api.get("/questions/");
@@ -28,7 +33,6 @@ export default function QuestionBank() {
     }
   }
 
-  // Load categories
   async function loadCategories() {
     try {
       const res = await api.get("/categories/");
@@ -38,21 +42,14 @@ export default function QuestionBank() {
     }
   }
 
-  // Load current user
   async function loadCurrentUser() {
     try {
       const res = await api.get("/users/me/");
       setUserId(res.data.id);
     } catch (err) {
-      console.error("Error loading user", err);
+      console.error("Error loading current user", err);
     }
   }
-
-  useEffect(() => {
-    loadQuestions();
-    loadCategories();
-    loadCurrentUser();
-  }, []);
 
   function set(k, v) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -60,7 +57,6 @@ export default function QuestionBank() {
 
   async function saveQuestion(e) {
     e.preventDefault();
-
     try {
       if (editingId) {
         await api.put(`/questions/${editingId}/`, form);
@@ -68,7 +64,6 @@ export default function QuestionBank() {
       } else {
         await api.post("/questions/", form);
       }
-
       setForm({
         text: "",
         option_a: "",
@@ -107,7 +102,6 @@ export default function QuestionBank() {
     });
   }
 
-  // Filtered questions based on search and category
   const filteredItems = items.filter((q) => {
     const matchesSearch = q.text.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter ? q.category?.name === categoryFilter : true;
@@ -119,7 +113,7 @@ export default function QuestionBank() {
       <h2>Question Bank (Examiner)</h2>
 
       {/* Search & Category Filter */}
-      <div style={{ marginBottom: 16, display: "flex", gap: 12 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <input
           placeholder="Search questions..."
           value={search}
@@ -133,7 +127,7 @@ export default function QuestionBank() {
         </select>
       </div>
 
-      {/* Add/Edit Question Form */}
+      {/* Add/Edit Form */}
       <form onSubmit={saveQuestion} style={{ display: "grid", gap: 8, maxWidth: 650, marginBottom: 16 }}>
         <textarea placeholder="Question text" value={form.text} onChange={(e)=>set("text", e.target.value)} />
         <input placeholder="Option A" value={form.option_a} onChange={(e)=>set("option_a", e.target.value)} />
@@ -156,13 +150,13 @@ export default function QuestionBank() {
         {editingId && <button type="button" onClick={() => { setEditingId(null); setForm({ text:"", option_a:"", option_b:"", option_c:"", option_d:"", correct_answer:"A", category:"" }) }}>Cancel</button>}
       </form>
 
-      {/* Question List */}
+      {/* Questions */}
       <div style={{ display: "grid", gap: 12 }}>
         {filteredItems.map((q) => (
           <div key={q.id} style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <b>{q.text}</b> <br />
+                <b>{q.text}</b><br />
                 <small>Examiner: {q.examiner_name}</small>
                 {q.category && <div>Category: {q.category.name}</div>}
               </div>
