@@ -104,7 +104,9 @@ export default function QuestionBank() {
 
   const filteredItems = items.filter((q) => {
     const matchesSearch = q.text.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = categoryFilter ? q.category?.name === categoryFilter : true;
+    const matchesCategory = categoryFilter
+      ? String(q.category?.id) === String(categoryFilter)
+      : true;
     return matchesSearch && matchesCategory;
   });
 
@@ -122,7 +124,7 @@ export default function QuestionBank() {
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
           <option value="">All Categories</option>
           {categories.map((cat) => (
-            <option key={cat.id} value={cat.name}>{cat.name}</option>
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
       </div>
