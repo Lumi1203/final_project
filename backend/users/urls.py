@@ -14,4 +14,5 @@ urlpatterns = [
         PasswordResetConfirmAPIView.as_view(),
         name="password_reset_confirm"
     ),
+    
 ]

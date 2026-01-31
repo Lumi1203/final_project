@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "../services/api";
 import ExplainModal from "../components/ExplainModal";
 
-const QUIZ_SECONDS = 10 * 60; // ✅ 10 minutes (change to 5*60, 15*60, etc.)
+const QUIZ_SECONDS = 10 * 60;
 
 function formatTime(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -11,259 +11,285 @@ function formatTime(totalSeconds) {
 }
 
 export default function TakeQuiz() {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [incorrectIds, setIncorrectIds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-
-  // ✅ Timer state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [explain, setExplain] = useState({ open: false, qid: null, myAnswer: null });
   const [secondsLeft, setSecondsLeft] = useState(QUIZ_SECONDS);
+
   const timerRef = useRef(null);
 
-  const [explain, setExplain] = useState({ open: false, qid: null, myAnswer: null });
+  // Load user + profile
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) window.location.href = "/login";
 
-  async function start() {
-    // Reset everything
+    const loadProfile = async () => {
+      try {
+        const meRes = await api.get("/auth/me/");
+        const profRes = await api.get("/auth/profile/");
+        setUser(meRes.data);
+        setProfile(profRes.data);
+      } catch (err) {
+        console.error("Failed to load profile", err);
+        localStorage.removeItem("access_token");
+        window.location.href = "/login";
+      }
+    };
+    loadProfile();
+  }, []);
+
+  // Load quiz when user loaded
+  useEffect(() => {
+    if (!user) return;
+    startQuiz();
+  }, [user]);
+
+  const startQuiz = async () => {
     setResult(null);
-    setIncorrectIds([]);
     setAnswers({});
-    setSubmitting(false);
-
-    // Reset timer
+    setIncorrectIds([]);
+    setCurrentIndex(0);
     stopTimer();
     setSecondsLeft(QUIZ_SECONDS);
 
-    // Load new questions
-    const res = await api.get("/quiz/start/?n=10");
-    setQuestions(res.data.questions);
-
-    // Start countdown
-    startTimer();
-  }
-
-  function startTimer() {
-    stopTimer();
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1);
-    }, 1000);
-  }
-
-  function stopTimer() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    try {
+      const res = await api.get("/quiz/start/?n=10");
+      setQuestions(res.data.questions);
+      startTimer();
+    } catch (err) {
+      console.error("Failed to load quiz", err);
     }
-  }
+  };
+
+  // Timer functions
+  const startTimer = () => {
+    stopTimer();
+    timerRef.current = setInterval(() => setSecondsLeft(prev => prev - 1), 1000);
+  };
+  const stopTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
 
   useEffect(() => {
-    start();
-    return () => stopTimer(); // cleanup
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!questions.length || result) return;
+    if (secondsLeft <= 0) submitQuiz(true);
+  }, [secondsLeft, questions.length, result]);
 
-  const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
-  const total = questions.length;
+  const chooseAnswer = (qid, val) => setAnswers(prev => ({ ...prev, [qid]: val }));
+  const nextQuestion = () => setCurrentIndex(prev => Math.min(prev + 1, questions.length - 1));
+  const prevQuestion = () => setCurrentIndex(prev => Math.max(prev - 1, 0));
 
-  const canSubmit = useMemo(() => {
-    if (!total) return false;
-    return questions.every((q) => answers[q.id]);
-  }, [questions, answers, total]);
+  const canSubmit = questions.every(q => answers[q.id]);
 
-  const answerProgressPercent = total ? Math.round((answeredCount / total) * 100) : 0;
-
-  const timePercent = Math.max(0, Math.round((secondsLeft / QUIZ_SECONDS) * 100));
-
-  function choose(qid, val) {
-    setAnswers((p) => ({ ...p, [qid]: val }));
-  }
-
-  async function submit(auto = false) {
+  const submitQuiz = async (auto = false) => {
     if (submitting) return;
     setSubmitting(true);
-
     try {
       const payload = {
         answers: questions
-          .filter((q) => answers[q.id]) // only answered
-          .map((q) => ({ question_id: q.id, answer: answers[q.id] })),
+          .filter(q => answers[q.id])
+          .map(q => ({ question_id: q.id, answer: answers[q.id] })),
       };
-
       const res = await api.post("/quiz/submit/", payload);
       setResult(res.data);
       setIncorrectIds(res.data.incorrect_question_ids || []);
       stopTimer();
-
-      if (auto) {
-        // optional message/alert could be shown in UI
-      }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
-  // ✅ Auto-submit at time end
+  const openExplainModal = qid => setExplain({ open: true, qid, myAnswer: answers[qid] });
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e) => {
+    if (!questions.length || result) return;
+
+    if (e.key.toUpperCase() === "A") chooseAnswer(questions[currentIndex].id, "A");
+    else if (e.key.toUpperCase() === "B") chooseAnswer(questions[currentIndex].id, "B");
+    else if (e.key.toUpperCase() === "C") chooseAnswer(questions[currentIndex].id, "C");
+    else if (e.key.toUpperCase() === "D") chooseAnswer(questions[currentIndex].id, "D");
+    else if (e.key === "ArrowRight") nextQuestion();
+    else if (e.key === "ArrowLeft") prevQuestion();
+  }, [questions, currentIndex, result]);
+
   useEffect(() => {
-    if (!questions.length) return;
-    if (result) return; // already submitted
-    if (secondsLeft <= 0) {
-      setSecondsLeft(0);
-      submit(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secondsLeft, questions.length, result]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
-  function openExplain(qid) {
-    setExplain({ open: true, qid, myAnswer: answers[qid] });
-  }
+  // Prevent refresh/navigation
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!result) {
+        e.preventDefault();
+        e.returnValue = "Your test is not submitted yet!";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [result]);
 
-  const timeWarning = secondsLeft <= 60; // last minute
+  if (!user || !profile || !questions.length) return <div className="container my-4">Loading quiz...</div>;
+
+  const currentQ = questions[currentIndex];
+  const answeredPercent = Math.round((Object.keys(answers).length / questions.length) * 100);
 
   return (
-    <div className="container my-4" style={{ maxWidth: 900 }}>
+    <div className="container my-4">
+      {/* Timer + progress bar */}
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Take Test</h2>
-        <button className="btn btn-outline-secondary" onClick={start} disabled={submitting}>
-          Restart
-        </button>
+        <div>
+          <strong>Time Left:</strong> {formatTime(secondsLeft)}
+        </div>
+        <div className="flex-grow-1 mx-3">
+          <div className="progress" style={{ height: "12px" }}>
+            <div
+              className="progress-bar"
+              role="progressbar"
+              style={{ width: `${answeredPercent}%` }}
+              aria-valuenow={answeredPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+        </div>
+        <div>
+          <strong>{answeredPercent}% answered</strong>
+        </div>
       </div>
 
-      {/* Timer + progress */}
-      <div className="row g-3 mb-3">
-        {/* Timer card */}
-        <div className="col-md-5">
-          <div className={`card shadow-sm ${timeWarning && !result ? "border border-danger" : ""}`}>
+      <div className="row">
+        {/* Left: profile + instructions */}
+        <div className="col-md-3">
+          <div className="card shadow-sm mb-3 text-center">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Time Left</h5>
-                <span className={`badge ${timeWarning && !result ? "bg-danger" : "bg-primary"}`}>
-                  {formatTime(secondsLeft)}
-                </span>
-              </div>
-
-              <div className="progress mt-3" style={{ height: 10 }}>
-                <div
-                  className={`progress-bar ${timeWarning && !result ? "bg-danger" : ""}`}
-                  role="progressbar"
-                  style={{ width: `${timePercent}%` }}
-                  aria-valuenow={timePercent}
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                />
-              </div>
-
-              <div className="small text-muted mt-2">
-                Auto-submits when time ends.
+              <img
+                src={profile.photo_url}
+                alt="profile"
+                className="rounded-circle mb-2"
+                style={{ width: 120, height: 120, objectFit: "cover" }}
+              />
+              <div>{user.first_name} {user.last_name}</div>
+              <div className="badge bg-secondary mb-2">{user.role}</div>
+              <div className="small text-muted">
+                <p>Instructions:</p>
+                <p>A/B/C/D = select answer</p>
+                <p>→ = Next, ← = Previous</p>
+                <p>Quiz auto-submits when time ends</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Answer progress card */}
-        <div className="col-md-7">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <div className="d-flex justify-content-between mb-2">
-                <small className="text-muted">
-                  Answered: <b>{answeredCount}</b> / {total || 0}
-                </small>
-                <small className="text-muted">{answerProgressPercent}%</small>
-              </div>
-              <div className="progress">
-                <div
-                  className="progress-bar"
-                  role="progressbar"
-                  style={{ width: `${answerProgressPercent}%` }}
-                  aria-valuenow={answerProgressPercent}
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                />
-              </div>
-
-              {!result && (
-                <div className="mt-3 d-flex justify-content-end">
-                  <button
-                    className="btn btn-success"
-                    disabled={!canSubmit || submitting}
-                    onClick={() => submit(false)}
-                  >
+        {/* Right: questions / results */}
+        <div className="col-md-9">
+          {!result ? (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body">
+                <h5>Q{currentIndex + 1}. {currentQ.text}</h5>
+                {["A","B","C","D"].map(opt => {
+                  const label =
+                    opt === "A" ? currentQ.option_a :
+                    opt === "B" ? currentQ.option_b :
+                    opt === "C" ? currentQ.option_c :
+                    currentQ.option_d;
+                  return (
+                    <div key={opt} className="form-check mb-2">
+                      <input
+                        type="radio"
+                        className="form-check-input"
+                        id={`q-${currentQ.id}-${opt}`}
+                        name={`q-${currentQ.id}`}
+                        checked={answers[currentQ.id] === opt}
+                        onChange={() => chooseAnswer(currentQ.id, opt)}
+                      />
+                      <label className="form-check-label" htmlFor={`q-${currentQ.id}-${opt}`}>
+                        <b>{opt})</b> {label}
+                      </label>
+                    </div>
+                  );
+                })}
+                <div className="d-flex justify-content-between mt-3">
+                  <button className="btn btn-outline-secondary" onClick={prevQuestion} disabled={currentIndex===0}>Previous</button>
+                  <button className="btn btn-outline-secondary" onClick={nextQuestion} disabled={currentIndex===questions.length-1}>Next</button>
+                  <button className="btn btn-success" onClick={() => submitQuiz(false)} disabled={!canSubmit || submitting}>
                     {submitting ? "Submitting..." : "Submit Quiz"}
                   </button>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Result summary */}
-      {result && (
-        <div className="alert alert-info shadow-sm">
-          <h5 className="mb-1">Result</h5>
-          <div>
-            Score: <b>{result.score}</b> / {result.total_questions}
-          </div>
-          <div>Incorrect questions: {incorrectIds.length}</div>
-        </div>
-      )}
-
-      {/* Questions */}
-      <div className="d-grid gap-3">
-        {questions.map((q, idx) => (
-          <div key={q.id} className="card shadow-sm">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3">
-                <h5 className="card-title mb-3">
-                  Q{idx + 1}. {q.text}
-                </h5>
-
-                {result && incorrectIds.includes(q.id) && (
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => openExplain(q.id)}
-                  >
-                    Explain
-                  </button>
-                )}
+          ) : (
+            <>
+              <div className="alert alert-info shadow-sm mb-3">
+                <h5 className="mb-1">Result Summary</h5>
+                <div>Score: <b>{result.score}</b> / {result.total_questions}</div>
+                <div>Incorrect questions: {incorrectIds.length}</div>
               </div>
 
-              {["A", "B", "C", "D"].map((opt) => {
-                const label =
-                  opt === "A"
-                    ? q.option_a
-                    : opt === "B"
-                    ? q.option_b
-                    : opt === "C"
-                    ? q.option_c
-                    : q.option_d;
-
-                return (
-                  <div key={opt} className="form-check mb-2">
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name={`q-${q.id}`}
-                      id={`q-${q.id}-${opt}`}
-                      checked={answers[q.id] === opt}
-                      onChange={() => choose(q.id, opt)}
-                      disabled={!!result} // lock after submit
-                    />
-                    <label className="form-check-label" htmlFor={`q-${q.id}-${opt}`}>
-                      <b>{opt})</b> {label}
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+              <div className="d-grid gap-3">
+                {questions.map((q, idx) => {
+                  const userAns = answers[q.id];
+                  const isIncorrect = incorrectIds.includes(q.id);
+                  return (
+                    <div key={q.id} className="card shadow-sm">
+                      <div className="card-body">
+                        <div className="d-flex justify-content-between align-items-start gap-3">
+                          <h5 className="card-title mb-3">
+                            Q{idx+1}. {q.text}
+                          </h5>
+                          {isIncorrect && (
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => setExplain({ open: true, qid: q.id, myAnswer: userAns })}
+                            >
+                              Explain
+                            </button>
+                          )}
+                        </div>
+                        {["A","B","C","D"].map(opt => {
+                          const label =
+                            opt === "A" ? q.option_a :
+                            opt === "B" ? q.option_b :
+                            opt === "C" ? q.option_c :
+                            q.option_d;
+                          return (
+                            <div key={opt} className="form-check mb-2">
+                              <input
+                                type="radio"
+                                className="form-check-input"
+                                name={`q-${q.id}`}
+                                id={`q-${q.id}-${opt}`}
+                                checked={userAns === opt}
+                                disabled
+                              />
+                              <label className="form-check-label" htmlFor={`q-${q.id}-${opt}`}>
+                                <b>{opt})</b> {label}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <ExplainModal
         open={explain.open}
-        onClose={() => setExplain({ open: false, qid: null, myAnswer: null })}
+        onClose={() => setExplain({ open:false, qid:null, myAnswer:null })}
         questionId={explain.qid}
         myAnswer={explain.myAnswer}
       />

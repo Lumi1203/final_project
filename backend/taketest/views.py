@@ -108,10 +108,7 @@ def my_results(request):
 @api_view(["POST"])
 @permission_classes([IsTestTaker])
 def explain_incorrect(request):
-    """
-    Calls OpenAI to explain why the correct answer is correct and why the user's answer is wrong.
-    Keeps API key on server. Never expose the key to React. :contentReference[oaicite:7]{index=7}
-    """
+    
     if not settings.OPENAI_API_KEY:
         return Response({"detail": "OpenAI API key not configured on server."}, status=500)
 
