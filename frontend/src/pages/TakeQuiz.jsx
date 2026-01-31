@@ -188,9 +188,10 @@ export default function TakeQuiz() {
               <div className="badge bg-secondary mb-2">{user.role}</div>
               <div className="small text-muted">
                 <p>Instructions:</p>
-                <p>A/B/C/D = select answer</p>
-                <p>→ = Next, ← = Previous</p>
-                <p>Quiz auto-submits when time ends</p>
+                <p>Press A/B/C/D on your keyboard to select answer</p>
+                <p>Press right arrow key → for Next Question and Left arrow key ← for Previous Question</p>
+                <p>Test will submit automatically when time ends</p>
+                <p>Do not Refresh page or close this page as it will interupt your test</p>
               </div>
             </div>
           </div>

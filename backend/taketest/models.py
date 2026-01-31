@@ -1,6 +1,12 @@
 from django.db import models
 from django.conf import settings
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
 class TestResult(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     score = models.IntegerField()
@@ -17,6 +23,13 @@ class Question(models.Model):
         related_name="questions",
         limit_choices_to={"role": "examiner"},
     )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="questions"
+    )
     text = models.TextField()
     option_a = models.CharField(max_length=255)
     option_b = models.CharField(max_length=255)
@@ -25,9 +38,13 @@ class Question(models.Model):
 
     correct_answer = models.CharField(
         max_length=1,
-        choices=[("A","A"),("B","B"),("C","C"),("D","D")],
+        choices=[("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")],
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.text[:50]
+
+    class Meta:
+        ordering = ["-created_at"]
