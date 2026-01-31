@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { Link } from "react-router-dom";
 
 export default function Login() {
   const { login } = useAuth();
@@ -8,8 +9,7 @@ export default function Login() {
 
   // 🔒 Redirect if already logged in
   useEffect(() => {
-    const token = localStorage.getItem("access");
-    if (token) {
+    if (localStorage.getItem("access")) {
       nav("/dashboard");
     }
   }, [nav]);
@@ -23,15 +23,13 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       await login(username, password);
       nav("/dashboard");
     } catch (err) {
-      const msg =
-        err?.response?.data
-          ? JSON.stringify(err.response.data)
-          : err?.message || "Login failed";
+      const msg = err?.response?.data
+        ? JSON.stringify(err.response.data)
+        : err?.message || "Login failed";
       setError(msg);
       console.error("Login error:", err);
     } finally {
@@ -71,10 +69,7 @@ export default function Login() {
                   />
                 </div>
 
-                <button
-                  className="btn btn-primary w-100"
-                  disabled={loading}
-                >
+                <button className="btn btn-primary w-100" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
                 </button>
               </form>
@@ -90,6 +85,7 @@ export default function Login() {
                   <Link to="/register">Register here</Link>
                 </small>
               </div>
+
             </div>
           </div>
         </div>
