@@ -133,6 +133,7 @@ STATIC_URL = 'static/'
 
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:5173",
+  "https://final-project-frontend-0f8o.onrender.com"
 ]
 
 REST_FRAMEWORK = {
