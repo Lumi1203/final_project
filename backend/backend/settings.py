@@ -142,7 +142,6 @@ REST_FRAMEWORK = {
   ),
 }
 
-ALLOWED_HOSTS = []
 
 SIMPLE_JWT = {
         'AUTH_HEADER_TYPES': ('Bearer',),
@@ -174,7 +173,3 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 SENDGRID_SANDBOX_MODE_IN_DEBUG = os.getenv("SENDGRID_SANDBOX_MODE_IN_DEBUG")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://final-project-frontend-0f8o.onrender.com",
-]
