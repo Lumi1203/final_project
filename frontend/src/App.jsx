@@ -12,7 +12,7 @@ import Navbar from "./components/Navbar";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import { TestProvider } from "./contexts/TestContext"; // ✅ import TestProvider
+import { TestProvider } from "./contexts/TestContext"; 
 
 function RoleRoute({ role, children }) {
   const { user } = useAuth();
@@ -24,7 +24,7 @@ function RoleRoute({ role, children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <TestProvider> {/* ✅ wrap entire app in TestProvider */}
+      <TestProvider> 
         <BrowserRouter>
           <Navbar />
           <Routes>
