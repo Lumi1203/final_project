@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "../services/api";
 import ExplainModal from "../components/ExplainModal";
+import { useTest } from "../contexts/TestContext";
 
-const QUIZ_SECONDS = 10 * 60;
+const QUIZ_SECONDS = 10 * 60; // 10 minutes
 
 function formatTime(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -11,6 +12,8 @@ function formatTime(totalSeconds) {
 }
 
 export default function TakeQuiz() {
+  const { setTestInProgress } = useTest();
+
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -24,7 +27,7 @@ export default function TakeQuiz() {
 
   const timerRef = useRef(null);
 
-  // Load user + profile
+  // Load user & profile
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) window.location.href = "/login";
@@ -44,7 +47,7 @@ export default function TakeQuiz() {
     loadProfile();
   }, []);
 
-  // Load quiz when user loaded
+  // Start quiz after user loaded
   useEffect(() => {
     if (!user) return;
     startQuiz();
@@ -62,12 +65,13 @@ export default function TakeQuiz() {
       const res = await api.get("/quiz/start/?n=10");
       setQuestions(res.data.questions);
       startTimer();
+      setTestInProgress(true); // mark test as in progress
     } catch (err) {
       console.error("Failed to load quiz", err);
     }
   };
 
-  // Timer functions
+  // Timer
   const startTimer = () => {
     stopTimer();
     timerRef.current = setInterval(() => setSecondsLeft(prev => prev - 1), 1000);
@@ -81,12 +85,14 @@ export default function TakeQuiz() {
     if (secondsLeft <= 0) submitQuiz(true);
   }, [secondsLeft, questions.length, result]);
 
+  // Answer functions
   const chooseAnswer = (qid, val) => setAnswers(prev => ({ ...prev, [qid]: val }));
   const nextQuestion = () => setCurrentIndex(prev => Math.min(prev + 1, questions.length - 1));
   const prevQuestion = () => setCurrentIndex(prev => Math.max(prev - 1, 0));
 
   const canSubmit = questions.every(q => answers[q.id]);
 
+  // Submit quiz
   const submitQuiz = async (auto = false) => {
     if (submitting) return;
     setSubmitting(true);
@@ -100,6 +106,7 @@ export default function TakeQuiz() {
       setResult(res.data);
       setIncorrectIds(res.data.incorrect_question_ids || []);
       stopTimer();
+      setTestInProgress(false); // mark test finished
     } catch (err) {
       console.error(err);
     } finally {
@@ -107,16 +114,15 @@ export default function TakeQuiz() {
     }
   };
 
+  // Open explain modal
   const openExplainModal = qid => setExplain({ open: true, qid, myAnswer: answers[qid] });
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e) => {
     if (!questions.length || result) return;
 
-    if (e.key.toUpperCase() === "A") chooseAnswer(questions[currentIndex].id, "A");
-    else if (e.key.toUpperCase() === "B") chooseAnswer(questions[currentIndex].id, "B");
-    else if (e.key.toUpperCase() === "C") chooseAnswer(questions[currentIndex].id, "C");
-    else if (e.key.toUpperCase() === "D") chooseAnswer(questions[currentIndex].id, "D");
+    const key = e.key.toUpperCase();
+    if (["A", "B", "C", "D"].includes(key)) chooseAnswer(questions[currentIndex].id, key);
     else if (e.key === "ArrowRight") nextQuestion();
     else if (e.key === "ArrowLeft") prevQuestion();
   }, [questions, currentIndex, result]);
@@ -126,7 +132,7 @@ export default function TakeQuiz() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Prevent refresh/navigation
+  // Prevent refresh / close
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (!result) {
@@ -229,12 +235,14 @@ export default function TakeQuiz() {
             </div>
           ) : (
             <>
+              {/* Result Summary */}
               <div className="alert alert-info shadow-sm mb-3">
                 <h5 className="mb-1">Result Summary</h5>
                 <div>Score: <b>{result.score}</b> / {result.total_questions}</div>
                 <div>Incorrect questions: {incorrectIds.length}</div>
               </div>
 
+              {/* All Questions with Explain buttons */}
               <div className="d-grid gap-3">
                 {questions.map((q, idx) => {
                   const userAns = answers[q.id];
@@ -243,9 +251,7 @@ export default function TakeQuiz() {
                     <div key={q.id} className="card shadow-sm">
                       <div className="card-body">
                         <div className="d-flex justify-content-between align-items-start gap-3">
-                          <h5 className="card-title mb-3">
-                            Q{idx+1}. {q.text}
-                          </h5>
+                          <h5 className="card-title mb-3">Q{idx+1}. {q.text}</h5>
                           {isIncorrect && (
                             <button
                               className="btn btn-sm btn-outline-primary"
@@ -287,6 +293,7 @@ export default function TakeQuiz() {
         </div>
       </div>
 
+      {/* Explain Modal */}
       <ExplainModal
         open={explain.open}
         onClose={() => setExplain({ open:false, qid:null, myAnswer:null })}

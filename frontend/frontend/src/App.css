@@ -40,3 +40,9 @@
 .read-the-docs {
   color: #888;
 }
+
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.6;
+  cursor: not-allowed;
+}

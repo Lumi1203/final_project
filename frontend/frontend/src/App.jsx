@@ -12,8 +12,7 @@ import Navbar from "./components/Navbar";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-
-
+import { TestProvider } from "./contexts/TestContext"; // ✅ import TestProvider
 
 function RoleRoute({ role, children }) {
   const { user } = useAuth();
@@ -25,43 +24,70 @@ function RoleRoute({ role, children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
+      <TestProvider> {/* ✅ wrap entire app in TestProvider */}
+        <BrowserRouter>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
 
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
-          <Route path="/dashboard" element={
-            <ProtectedRoute><Dashboard /></ProtectedRoute>
-          } />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/question-bank" element={
-            <ProtectedRoute>
-              <RoleRoute role="examiner"><QuestionBank /></RoleRoute>
-            </ProtectedRoute>
-          } />
+            <Route
+              path="/question-bank"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute role="examiner">
+                    <QuestionBank />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/take-quiz" element={
-            <ProtectedRoute>
-              <RoleRoute role="testtaker"><TakeQuiz /></RoleRoute>
-            </ProtectedRoute>
-          } />
+            <Route
+              path="/take-quiz"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute role="testtaker">
+                    <TakeQuiz />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/results" element={
-            <ProtectedRoute>
-              <RoleRoute role="testtaker"><Results /></RoleRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute><Profile /></ProtectedRoute>
-          } />
-        </Routes>
-      </BrowserRouter>
+            <Route
+              path="/results"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute role="testtaker">
+                    <Results />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </TestProvider>
     </AuthProvider>
   );
 }
