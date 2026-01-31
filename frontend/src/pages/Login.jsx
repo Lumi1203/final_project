@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Link } from "react-router-dom";
+import { api } from "../services/api";
 
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
-
-  // 🔒 Redirect if already logged in
-  useEffect(() => {
-    if (localStorage.getItem("access")) {
-      nav("/dashboard");
-    }
-  }, [nav]);
-
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  
+  useEffect(() => {
+    api.get("/me/")
+      .then(() => nav("/dashboard"))
+      .catch(() => {}); 
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -27,11 +27,7 @@ export default function Login() {
       await login(username, password);
       nav("/dashboard");
     } catch (err) {
-      const msg = err?.response?.data
-        ? JSON.stringify(err.response.data)
-        : err?.message || "Login failed";
-      setError(msg);
-      console.error("Login error:", err);
+      setError("Invalid credentials");
     } finally {
       setLoading(false);
     }
@@ -54,7 +50,6 @@ export default function Login() {
                     className="form-control"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    required
                   />
                 </div>
 
@@ -65,7 +60,6 @@ export default function Login() {
                     className="form-control"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
                   />
                 </div>
 
@@ -75,11 +69,6 @@ export default function Login() {
               </form>
 
               <div className="text-center mt-3">
-                <small>
-                  Forgot Password?{" "}
-                  <Link to="/forgot-password">Reset Password</Link>
-                </small>
-                <br />
                 <small>
                   Don’t have an account?{" "}
                   <Link to="/register">Register here</Link>

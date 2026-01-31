@@ -188,3 +188,12 @@ def current_user(request):
         "username": request.user.username,
         "role": getattr(request.user, "role", None),
     })
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    return Response({
+        "id": request.user.id,
+        "username": request.user.username,
+        "role": request.user.role,
+    })

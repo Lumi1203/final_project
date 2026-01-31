@@ -12,13 +12,13 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class QuestionExaminerSerializer(serializers.ModelSerializer):
     examiner_name = serializers.SerializerMethodField()
-    category = serializers.PrimaryKeyRelatedField(
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
+        source="category",
+        write_only=True,
         required=False,
-        allow_null=True
     )
-    category_name = serializers.CharField(source="category.name", read_only=True)
-    examiner_id = serializers.IntegerField(source="examiner.id", read_only=True)
 
     class Meta:
         model = Question
@@ -27,6 +27,7 @@ class QuestionExaminerSerializer(serializers.ModelSerializer):
 
     def get_examiner_name(self, obj):
         return f"{obj.examiner.first_name} {obj.examiner.last_name}"
+
 
 class QuestionTakerSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
