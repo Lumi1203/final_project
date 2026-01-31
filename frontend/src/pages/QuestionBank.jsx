@@ -166,7 +166,7 @@ export default function QuestionBank() {
                 <small>Examiner: {q.examiner_name}</small>
                 {q.category && <div>Category: {q.category.name}</div>}
               </div>
-              {q.examiner === userId && (
+              {q.examiner_id === userId && (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => startEdit(q)}>Edit</button>
                   <button onClick={() => del(q.id)}>Delete</button>
