@@ -152,15 +152,7 @@ export default function QuestionBank() {
         {editingId && (
           <button type="button" onClick={() => {
             setEditingId(null);
-            setForm({
-              text:"",
-              option_a:"",
-              option_b:"",
-              option_c:"",
-              option_d:"",
-              correct_answer:"A",
-              category:""
-            })
+            setForm({ text:"", option_a:"", option_b:"", option_c:"", option_d:"", correct_answer:"A", category:"" });
           }}>Cancel</button>
         )}
       </form>
@@ -175,8 +167,8 @@ export default function QuestionBank() {
                 <small>Examiner: {q.examiner_name}</small>
                 {q.category && <div>Category: {q.category.name}</div>}
               </div>
-              {/* Fix: use q.examiner.id */}
-              {q.examiner?.id === userId && (
+              {/* Correct check for add/edit visibility */}
+              {q.examiner === userId && (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => startEdit(q)}>Edit</button>
                   <button onClick={() => del(q.id)}>Delete</button>
