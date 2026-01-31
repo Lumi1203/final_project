@@ -13,6 +13,9 @@ from django.core.mail import send_mail
 from rest_framework.views import APIView
 from django.conf import settings
 from rest_framework import status
+from .models import CustomUser
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -97,3 +100,40 @@ class PasswordResetRequestAPIView(APIView):
         send_mail(subject, message, None, [user.email])
 
         return Response({"detail": "If this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+    
+
+class PasswordResetConfirmAPIView(APIView):
+    """
+    Confirm password reset with UID + token.
+    """
+
+    def post(self, request, uidb64, token):
+        new_password = request.data.get("password")
+        confirm_password = request.data.get("password2")
+
+        if not new_password or not confirm_password:
+            return Response(
+                {"detail": "Both password fields are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {"detail": "Passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
