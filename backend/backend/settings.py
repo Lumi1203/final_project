@@ -29,9 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
 
 # Application definition
@@ -85,21 +85,14 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
+DATABASE_URL= os.getenv('DATABASE_URL')
+
 DATABASES = {
-    'default': dj_database_url.config(os.environ.get('DATABASE_URL'))
+"default": dj_database_url.config(
+default=f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB')}"
+)
 }
-
-#DATABASES = {
-#    "default": {
-#        "ENGINE": "django.db.backends.postgresql",
-#        "NAME": os.getenv("POSTGRES_DB"),
-#        "USER": os.getenv("POSTGRES_USER"),
-#        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-#        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-#        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-#    }
-#}
-
 
 
 # Password validation
